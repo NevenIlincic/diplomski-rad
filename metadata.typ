@@ -1,12 +1,12 @@
-#let format_strane = "iso-b5"         // могуће вредности: iso-b5, a4
-#let naslov = "Шаблон и упутство за писање завршних радова"
-#let autor = "Уписати име и презиме"
+#let format_strane = "a4"         // могуће вредности: iso-b5, a4
+#let naslov = "Имплементација игре Commander's Defense применом клијент-сервер архитектуре"
+#let autor = "Невен Илинчић"
 
 // На енглеском
 #let naslov_eng = "Template and tutorial for thesis preparation"
 #let autor_eng = "Upisati ime i prezime na latinici"
 
-#let indeks = "Уписати индекс"
+#let indeks = "SV47/2022"
 
 // Име и презиме ментора
 #let mentor = "Игор Дејановић"
@@ -16,8 +16,8 @@
 // Скинути коментаре са одговарајућих линија
 #let studijski_program = "Софтверско инжењерство и информационе технологије"
 //#let studijski_program = "Рачунарство и аутоматика"
-#let stepen = "Мастер академске студије"
-//#let stepen = "Основне академске студије"
+// #let stepen = "Мастер академске студије"
+#let stepen = "Основне академске студије"
 
 #let godina = [#datetime.today().year()]
 
