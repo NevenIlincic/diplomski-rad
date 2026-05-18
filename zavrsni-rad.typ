@@ -70,6 +70,8 @@
 #include "poglavlja/1-uvod.typ"
 #include "poglavlja/2-online_multiplayer_sistemi.typ"
 #include "poglavlja/3-koncepti_klijent_server_arhitekture.typ"
+#include "poglavlja/4-prikaz_igre.typ"
+#include "poglavlja/5-implementacija.typ"
 #include "poglavlja/7-zakljucak.typ"
 
 
