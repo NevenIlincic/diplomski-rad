@@ -2,6 +2,16 @@
 #set raw(syntaxes: gdscript-syntax)
 
 == Синхронизација стања
+ Процес синхронизације стања представља критичну компоненту мрежне архитектуре, коју визуелно представља Слика @fig:sequence_diagram_synhronization.
+
+#figure(image("../../slike/Sequence_Diagram.png", width: 60%),
+  caption: [
+    Дијаграм секвенци који приказује ток синхронизације стања.
+  ]
+)<fig:sequence_diagram_synhronization>
+
+Као што је приказано на дијаграму, клијент не чека потврду сервера како би ажурирао позицију, већ врши локалну предикцију. У тренутку када прими ауторитативно стање, врши се поређење које може довести до _rollback_ процеса, чиме се клијент враћа у исправно стање израчунато од стране сервера. 
+
 === Извршавање и чување акција
 Приказани код у Листингу @lst:player_physics_process_funkcija демонстрира интеграцију клијентске предикције. Кључни део ове имплементације је ажурирање локалне позиције играча (*_apply_movement_step_* функција) и чување у структуру *state_history*. Тиме се обезбеђује референца за будући _rollback_ процес.\
 У Листингу @lst:send_data_funckija приказана је *_send_data_* функција која се бави серијализацијом података о уносу. Бафер *_inputs_list_* памти историју акција које су извршене, а које још увек нису потврђене од стране сервера.
@@ -39,6 +49,73 @@
   ```,
   caption: [Слање података ка серверу и чување команди у бафер.],
 ) <lst:send_data_funckija>
+
+=== Серверска обрада и валидација
+Док клијент врши предикцију, сервер делује као ауторитативни ентитет који прима команде, валидира их и шаље коначно стање назад. Ово спречава варање и обезбеђује конзистентност игре за све играче. На Листингу @lst:handle_client_input_funkcija се може видети део методе која је задужена за валидацију и обраду добијених пакета од клијената.
+#figure(
+  ```rs
+pub async fn handle_client_input(&
+mut self, input: ClientInput, ip_address: SocketAddr) {
+        self.address_to_players.insert(input.player_id, ip_address);
+        match input.command {
+            CommandEnum:
+            :UdpPunch => {
+                return;
+            }
+            _ => {}
+        }
+        if let Some(player) = self.players.get_mut(&input.player_id) {
+            player.last_seen = Instant::now();
+            //Валидација уноса
+            if player.last_processed_input_id >= input.input_id {
+                return;
+            }
+            player.last_processed_input_id = input.input_id;
+            //Провера да ли је играч елиминисан
+            if player.respawn_timer > 0.0 {
+                player.mouse_angle = input.mouse_angle;
+                return;
+            }
+
+            let mut reset_reloads: bool = false;
+            let mut player_position_x: f32 = 0.0;
+            let mut player_position_y: f32 = 0.0;
+            if let Some(rb) = self.rigid_body_set.get_mut(player.body_handle) {
+                let speed = 10.0;
+                let mut x_vel = 0.0;
+                player_position_x = rb.position().translation.x;
+                player_position_y = rb.position().translation.y;
+
+                player.horizontal_velocity = 0.0;
+                if input.move_left {
+                    player.horizontal_velocity -= speed;
+                }
+                if input.move_right {
+                    player.horizontal_velocity += speed;
+                }
+                if player.current_gun != input.gun {
+                    player.shoot_cooldown = 0.2;
+                    reset_reloads = true;
+                }
+                player.current_gun = input.gun;
+                player.mouse_angle = input.mouse_angle;
+                if input.mouse_angle.cos() > 0.0 {
+                    player.facing_right = true;
+                } else {
+                    player.facing_right = false;
+                }
+                //ГРАВИТАЦИЈА
+                if (input.jump && player.is_on_ground && player.vertical_velocity >= 0.0) {
+                    player.vertical_velocity = -12.0;
+                    player.is_on_ground = false;
+                }
+            }
+            ...остатак методе
+
+  ```
+  ,
+  caption: [Део методе за валидацију и обраду корисничког уноса.],
+) <lst:handle_client_input_funkcija>
 
 === Детекција десинхронизације и усклађивање
 Процес усклађивања започиње обрадом примљеног пакета и изменом података о тренутном оружју играча као што су муниција, репетирање оружја (Листинг @lst:handle_server_response_funckija_1), након чега се бришу застареле команде из бафера (Листинг @lst:handle_server_response_funckija_2). Коначно, на основу разлике између предвиђене и ауторитативне позиције се примењује механизам корекције који је приказан на Листингу @lst:handle_server_response_funckija_3. Ако је разлика у позицији велика, клијент додатно понавља све акције које су извршене у периоду између два пакета (овај поступак омогућава да клијент не изгуби уносе док је чекао одговор сервера).
@@ -98,3 +175,4 @@
   ```,
   caption: [Кориговање позиције клијента.],
 ) <lst:handle_server_response_funckija_3>
+
