@@ -12,7 +12,7 @@
 
 Као што је приказано на дијаграму, клијент не чека потврду сервера како би ажурирао позицију, већ врши локалну предикцију. У тренутку када прими ауторитативно стање, врши се поређење које може довести до _rollback_ процеса, чиме се клијент враћа у исправно стање израчунато од стране сервера. 
 
-=== Извршавање и чување акција
+=== Извршавање и чување акција (клијент)
 Приказани код у Листингу @lst:player_physics_process_funkcija демонстрира интеграцију клијентске предикције. Кључни део ове имплементације је ажурирање локалне позиције играча (*_apply_movement_step_* функција) и чување у структуру *state_history*. Тиме се обезбеђује референца за будући _rollback_ процес.\
 У Листингу @lst:send_data_funckija приказана је *_send_data_* функција која се бави серијализацијом података о уносу. Бафер *_inputs_list_* памти историју акција које су извршене, а које још увек нису потврђене од стране сервера.
 
@@ -81,35 +81,15 @@ mut self, input: ClientInput, ip_address: SocketAddr) {
             let mut player_position_x: f32 = 0.0;
             let mut player_position_y: f32 = 0.0;
             if let Some(rb) = self.rigid_body_set.get_mut(player.body_handle) {
-                let speed = 10.0;
-                let mut x_vel = 0.0;
-                player_position_x = rb.position().translation.x;
-                player_position_y = rb.position().translation.y;
+              let speed = 10.0;
+              let mut x_vel = 0.0;
+              player_position_x = rb.position().translation.x;
+              player_position_y = rb.position().translation.y;
 
-                player.horizontal_velocity = 0.0;
-                if input.move_left {
-                    player.horizontal_velocity -= speed;
-                }
-                if input.move_right {
-                    player.horizontal_velocity += speed;
-                }
-                if player.current_gun != input.gun {
-                    player.shoot_cooldown = 0.2;
-                    reset_reloads = true;
-                }
-                player.current_gun = input.gun;
-                player.mouse_angle = input.mouse_angle;
-                if input.mouse_angle.cos() > 0.0 {
-                    player.facing_right = true;
-                } else {
-                    player.facing_right = false;
-                }
-                //ГРАВИТАЦИЈА
-                if (input.jump && player.is_on_ground && player.vertical_velocity >= 0.0) {
-                    player.vertical_velocity = -12.0;
-                    player.is_on_ground = false;
-                }
-            }
+              player.horizontal_velocity = 0.0;
+              if input.move_left {
+                  player.horizontal_velocity -= speed;
+              }
             ...остатак методе
 
   ```
@@ -117,7 +97,7 @@ mut self, input: ClientInput, ip_address: SocketAddr) {
   caption: [Део методе за валидацију и обраду корисничког уноса.],
 ) <lst:handle_client_input_funkcija>
 
-=== Детекција десинхронизације и усклађивање
+=== Детекција десинхронизације и усклађивање (клијент)
 Процес усклађивања започиње обрадом примљеног пакета и изменом података о тренутном оружју играча као што су муниција, репетирање оружја (Листинг @lst:handle_server_response_funckija_1), након чега се бришу застареле команде из бафера (Листинг @lst:handle_server_response_funckija_2). Коначно, на основу разлике између предвиђене и ауторитативне позиције се примењује механизам корекције који је приказан на Листингу @lst:handle_server_response_funckija_3. Ако је разлика у позицији велика, клијент додатно понавља све акције које су извршене у периоду између два пакета (овај поступак омогућава да клијент не изгуби уносе док је чекао одговор сервера).
 
 #figure(
