@@ -6,10 +6,19 @@ _Commander's Defense_ је 2D _online multiplayer_ пуцачина са боч�
 + Режим „свако против свакога“ (енгл. *_Free For All_ - FFA*) - играчи се боре једни против других. Први играч који достигне постављену количину поена побеђује. Режим је дизајниран за два до десет играча.
 Сваки играч у холу (енгл. _lobby_), пре почетка партије, има могућност одабира између три изгледа: командант у зеленом, плавом или црвеном оделу. Такође, сваки играч поседује три врсте оружја: пиштољ, аутоматску пушку и једну гранату.
 
-Како је речено у уводу, игра је инспирисана двема играма. Режим куле је инспирисан игром _Commando_ док је FFA инспирисан игром _Strike Force Heroes_.
+Како је речено у уводу, игра је инспирисана двема играма. Режим куле је инспирисан игром _Commando Assault_ (Слика @fig:commando_assault) док је FFA инспирисан игром _Strike Force Heroes_ (Слика @fig:strike_force_heroes).
 
+#figure(image("../slike/Commando_Assault.png", width: 50%),
+    caption: [
+      _Commando Assault_ видео игра.
+    ]
+  )<fig:commando_assault>
 
-#todo[Додати слике _Commando_ и _Strike Force Heroes_ игре ако буде потребно.]
+#figure(image("../slike/Strike_Force_Heroes.png", width: 50%),
+    caption: [
+      _Strike Force Heroes_ видео игра.
+    ]
+  )<fig:strike_force_heroes>
 
 == Приказ игре
 
