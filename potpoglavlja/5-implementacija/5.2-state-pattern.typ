@@ -2,7 +2,7 @@
 #set raw(syntaxes: gdscript-syntax)
 
 == Синхронизација стања
- Процес синхронизације стања представља критичну компоненту мрежне архитектуре, коју визуелно представља Слика @fig:sequence_diagram_synhronization.
+ Процес синхронизације стања представља критичну компоненту мрежне архитектуре, коју визуелно представља слика @fig:sequence_diagram_synhronization.
 
 #figure(image("../../slike/Sequence_Diagram.png", width: 60%),
   caption: [
@@ -12,9 +12,9 @@
 
 Као што је приказано на дијаграму, клијент не чека потврду сервера како би ажурирао позицију, већ врши локалну предикцију. У тренутку када прими ауторитативно стање, врши се поређење које може довести до _rollback_ процеса, чиме се клијент враћа у исправно стање израчунато од стране сервера. 
 
-=== Извршавање и чување акција (клијент)
-Приказани код у Листингу @lst:player_physics_process_funkcija демонстрира интеграцију клијентске предикције. Кључни део ове имплементације је ажурирање локалне позиције играча (*_apply_movement_step_* функција) и чување у структуру *state_history*. Тиме се обезбеђује референца за будући _rollback_ процес.\
-У Листингу @lst:send_data_funckija приказана је *_send_data_* функција која се бави серијализацијом података о уносу. Бафер *_inputs_list_* памти историју акција које су извршене, а које још увек нису потврђене од стране сервера.
+=== Извршавање и чување акција (клијент) <izvrsavanje_i_cuvanje_akcija>
+Приказани код у листингу @lst:player_physics_process_funkcija демонстрира интеграцију клијентске предикције. Кључни део ове имплементације је ажурирање локалне позиције играча (*_apply_movement_step_* метода - листинг @lst:apply_movement_step_metoda) и чување у структуру *state_history*. Тиме се обезбеђује референца за будући _rollback_ процес. Детаљније о имплементацији клијентског кретања у секцији @implementacija_kretanja. \ 
+У листингу @lst:send_data_funckija приказана је *_send_data_* метода која се бави серијализацијом података о уносу.
 
 #figure(
   ```gdscript
@@ -37,6 +37,15 @@
   caption: [Имплементација позива],
 ) <lst:player_physics_process_funkcija>
 \
+
+#figure(
+  ```gdscript
+  func apply_movement_step(command: PlayerMoveCommand, delta: float):
+	command.execute(delta)```,
+  caption: [_apply_movement_step_ метода]
+) <lst:apply_movement_step_metoda>
+Више о *Command* шаблону је приказано у секцији шаблони.
+
 #figure(
   ```gdscript
      func send_data(move_command: PlayerMoveCommand):
@@ -50,8 +59,10 @@
   caption: [Слање података ка серверу и чување команди у бафер.],
 ) <lst:send_data_funckija>
 
+Бафер *_inputs_list_* памти историју акција које су извршене, а које још увек нису потврђене од стране сервера.
+
 === Серверска обрада и валидација
-Док клијент врши предикцију, сервер делује као ауторитативни ентитет који прима команде, валидира их и шаље коначно стање назад. Ово спречава варање и обезбеђује конзистентност игре за све играче. На Листингу @lst:handle_client_input_funkcija се може видети део методе која је задужена за валидацију и обраду добијених пакета од клијената.
+Док клијент врши предикцију, сервер делује као ауторитативни ентитет који прима команде, валидира их и шаље коначно стање назад. Ово спречава варање и обезбеђује конзистентност игре за све играче. На листингу @lst:handle_client_input_funkcija се може видети део методе која је задужена за валидацију и обраду добијених пакета од клијената.
 #figure(
   ```rs
 pub async fn handle_client_input(&
@@ -98,7 +109,7 @@ mut self, input: ClientInput, ip_address: SocketAddr) {
 ) <lst:handle_client_input_funkcija>
 
 === Детекција десинхронизације и усклађивање (клијент)
-Процес усклађивања започиње обрадом примљеног пакета и изменом података о тренутном оружју играча као што су муниција, репетирање оружја (Листинг @lst:handle_server_response_funckija_1), након чега се бришу застареле команде из бафера (Листинг @lst:handle_server_response_funckija_2). Коначно, на основу разлике између предвиђене и ауторитативне позиције се примењује механизам корекције који је приказан на Листингу @lst:handle_server_response_funckija_3. Ако је разлика у позицији велика, клијент додатно понавља све акције које су извршене у периоду између два пакета (овај поступак омогућава да клијент не изгуби уносе док је чекао одговор сервера).
+Процес усклађивања започиње обрадом примљеног пакета и изменом података о тренутном оружју играча као што су муниција, репетирање оружја (листинг @lst:handle_server_response_funckija_1), након чега се бришу застареле команде из бафера (листинг @lst:handle_server_response_funckija_2). Коначно, на основу разлике између предвиђене и ауторитативне позиције се примењује механизам корекције који је приказан на листингу @lst:handle_server_response_funckija_3. Ако је разлика у позицији велика, клијент додатно понавља све акције које су извршене у периоду између два пакета (овај поступак омогућава да клијент не изгуби уносе док је чекао одговор сервера).
 
 #figure(
   ```gdscript
@@ -124,7 +135,7 @@ mut self, input: ClientInput, ip_address: SocketAddr) {
   ```,
   caption: [Брисање застарелих команди из бафера.],
 ) <lst:handle_server_response_funckija_2>
-
+\
 #figure(
   ```gdscript
   var checking_state = null
@@ -139,13 +150,13 @@ mut self, input: ClientInput, ip_address: SocketAddr) {
 		var error_vec = target_position - checking_state["global_position"]
 	
 		var distance = error_vec.length()
-		#TESKA KOREKCIJA
+		#ТЕШКА КОРЕКЦИЈА
 		if distance > 100.0:
 			global_position = target_position
 			for input_item in inputs_list:
 				apply_movement_correction(input_item, PHYSICS_DELTA)
 		
-		#LAGANA KOREKCIJA
+		#ЛАГАНА КОРЕКЦИЈА
 		else:
 			var old_pos = global_position
 			global_position = target_position			
@@ -155,4 +166,9 @@ mut self, input: ClientInput, ip_address: SocketAddr) {
   ```,
   caption: [Кориговање позиције клијента.],
 ) <lst:handle_server_response_funckija_3>
-
+\
+\
+\
+\
+\
+\
