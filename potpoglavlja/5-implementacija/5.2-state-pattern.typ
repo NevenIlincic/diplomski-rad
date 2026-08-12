@@ -44,7 +44,7 @@
 	command.execute(delta)```,
   caption: [_apply_movement_step_ метода]
 ) <lst:apply_movement_step_metoda>
-Више о *Command* шаблону је приказано у секцији шаблони.
+\
 
 #figure(
   ```gdscript
