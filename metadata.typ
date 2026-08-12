@@ -3,8 +3,8 @@
 #let autor = "Невен Илинчић"
 
 // На енглеском
-#let naslov_eng = "Template and tutorial for thesis preparation"
-#let autor_eng = "Upisati ime i prezime na latinici"
+#let naslov_eng = "Implementation of the game Commander's Defense using client-server architecture"
+#let autor_eng = "Neven Ilinčić"
 
 #let indeks = "SV47/2022"
 

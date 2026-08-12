@@ -1,3 +1,5 @@
+#import "@preview/codegds:0.1.0": gdscript-syntax
+#set raw(syntaxes: gdscript-syntax)
 == Комуникација клијента и сервера
 === Протоколи
 Комуникација између клијента и сервера је подељена на три различита протокола:
@@ -16,7 +18,7 @@
     - креирање, улазак и излазак из _lobby_-ја и 
     - добијање информација о приступљеном _lobby_-ју.
 
-На листингу @lst:enumi_komunikacija_klijent_server се могу видети сви енуми који се користе за размену података између клијента и сервера. *_ServerMessage_* представља одговор сервера ка клијенту, док *_ClientMessage_* је структура коју клијент шаље серверу.
+На листингу @lst:enumi_komunikacija_klijent_server се могу видети сви енуми који се користе за размену података између клијента и сервера. *_ServerMessage_* представља одговор сервера ка клијенту, док је *_ClientMessage_* структура коју клијент шаље серверу.
 
 #figure(
   ```rust
@@ -114,6 +116,82 @@ JWT представља додатан слој заштите и аутент�
     }
 
   ```,
-  caption: [Приказ енума који се користе за размену података између клијента и сервера.],
+  caption: [Имплементација _create_jwt()_ и _validate_jwt()_ метода],
 ) <lst:implementacija_jwt_handler_metode_server>
 \
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+\
+
+=== _Network_ и _MyHttpHandler_ синглтони (клијент)
+*_Network_* синглтон је задужен за успостављање конекције са сервером, док је *_MyHttpHandler_* задужен за слање захтева ка серверу путем _web-socket_-а или _REST API_-ја.
+
+#figure(
+  ```gdscript
+        extends Node2D
+        var is_local: bool = false
+        const VERSION: int = 1
+        ###CONNECTION
+        var socket := PacketPeerUDP.new()
+        var server_address = null
+        var server_port := 9000
+        var is_connected_to_udp_socket: bool = false
+        var websocket := WebSocketPeer.new()
+        var websocket_address = null
+        var is_connected_to_websocket: bool = false
+        var is_conenction_with_websocket_lost: bool = false
+        ...остатак променљивих
+
+        #Метода за отварање UDP сокета
+        func connect_to_socket(): 
+            var ip = IP.resolve_hostname(server_address)
+            if ip == "" or not ip.is_valid_ip_address():
+                return
+
+            var err = socket.set_dest_address(ip, server_port)
+            if err != OK:
+                return
+                
+            is_connected_to_udp_socket = true
+        #Метода за слање података серверу
+        func send_data(data: PackedByteArray):
+            if is_connected_to_udp_socket:
+                socket.put_packet(data)
+
+        ...остале методе
+  ```,
+  caption: [Део *_Network_* синглтона],
+) <lst:deo_Network_singltona>
+\
+
+#figure(
+  ```gdscript
+        extends Node
+        func register(nickname: String, password: String)
+        func _on_register_completed(result, response_code, headers, body, http_node)
+        func login(nickname: String, password: String) 
+        func _on_login_completed(result, response_code, headers, body, http_node)
+        func get_all_lobies()
+        func _on_get_all_lobbies_completed(result, response_code, headers, body, http_node)
+        func create_lobby_binary(max_players: int, password: String, game_mode_number:int = 0) 
+        func _on_create_completed(result, response_code, headers, body, http_node)
+        ...остале методе
+  ```,
+  caption: [Део *_MyHttpHandler_* синглтона],
+) <lst:deo_Network_singltona>
+\
+\
+\
+\
+\
+
+=== Оптимизација величине пакета
