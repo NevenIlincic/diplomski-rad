@@ -261,3 +261,5 @@ pub fn handle_movement(
   ```
 , 
 caption: [Део имплементације _handle_movement()_ методе задужене за рачунање позиције играча.]) <lst:handle_movement_metoda_server>
+\
+\
