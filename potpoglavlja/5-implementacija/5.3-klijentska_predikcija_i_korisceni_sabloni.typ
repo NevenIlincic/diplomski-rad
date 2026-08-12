@@ -38,9 +38,9 @@
 
 ==== _State_ шаблон
 У зависности од извршених акција и стања игре, играч у посматраном тренутку може да пуца, трчи, скаче или чека да оживи након што је био елиминисан.
-Како би се избегле сталне *_if_* провере у _physics_process_() методи која се окида сваког фрејма, што, ако их има пуно, може да доведе до пада у перформансама, имплементиран је *_State_* шаблон представљен *_PlayerState_* апстрактном класом (листинг @lst:implementacija_PlayerState_klase). _Enter()_ и _update()_ методе морају бити редефинисане у конкретним имплементацијама класа, док су _apply_common_physics()_ и _handle_inputs()_ заједничке методе за сва стања. Постојеће класе стања су: *_IdleState_*, *_RunningState_*, *_JumpingState_* и *_DeadState_*, а њихове имплементације _enter()_ методе су приказане у листинзима @lst:IdleState_enter_metoda, @lst:RunningState_enter_metoda, @lst:JumpingState_enter_metoda и @lst:DeadState_enter_metoda. Играч садржи референцу на стање, а када је потребно да играч пређе у ново стање, потребно је позвати методу _change_player_state()_ (листинг @lst:change_state_metoda).
+Како би се избегле сталне *_if_* провере у _physics_process_() методи која се позива сваког фрејма, што, ако их има пуно, може да доведе до пада у перформансама, имплементиран је *_State_* шаблон представљен *_PlayerState_* апстрактном класом (листинг @lst:implementacija_PlayerState_klase). _Enter()_ и _update()_ методе морају бити редефинисане у конкретним имплементацијама класа, док су _apply_common_physics()_ и _handle_inputs()_ заједничке методе за сва стања. Постојеће класе стања су: *_IdleState_*, *_RunningState_*, *_JumpingState_* и *_DeadState_*, а њихове имплементације _enter()_ методе су приказане у листинзима @lst:IdleState_enter_metoda, @lst:RunningState_enter_metoda, @lst:JumpingState_enter_metoda и @lst:DeadState_enter_metoda. Играч садржи референцу на стање, а када је потребно да играч пређе у ново стање, потребно је позвати методу _change_player_state()_ (листинг @lst:change_state_metoda).
 \
-Употреба *_State_* шаблона омогућава организованији код, боље перформансе и лакше дебагобање, јер је потребно фокусирати се само на оно стање које је изазвало проблем. Листинг @lst:change_state_metoda_pseudokod приказује псеудокод _execute()_ методе из листинга @lst:implementacija_PlayerMoveCommand_klase без имплементације шаблона.
+Употреба *_State_* шаблона омогућава организованији и прегледнији код, боље перформансе и лакше дебагобање, јер је потребно фокусирати се само на оно стање које је изазвало проблем. Листинг @lst:change_state_metoda_pseudokod приказује псеудокод _execute()_ методе из листинга @lst:implementacija_PlayerMoveCommand_klase без имплементације шаблона.
 
 #figure(
   ```gdscript
@@ -193,6 +193,71 @@
         код за логику стајања...
 
   ```,
-  caption: [Имплементација _execute()_ методе *_PlayerMoveCommand_* класе без имплементације *_State_* шаблона.],
+  caption: [Псеудокод _execute()_ методе *_PlayerMoveCommand_* класе без имплементације *_State_* шаблона.],
 ) <lst:change_state_metoda_pseudokod>
 \
+
+=== Имплементација на серверској страни
+Како је споменуто, било је потребно дефинисати и кретање играча на серверској страни. Део имплемнтације _handle_movement()_ методе у _Player_ структури је приказан у листингу @lst:handle_movement_metoda_server. Ако се упореди са методом _apply_common_physics()_ из листинга @lst:implementacija_PlayerState_klase, може се видети да се кретање рачуна на исти начин. Вредност константе гравитације и максимална дозвољена вертикална брзина су исте, као и начин провере ли је играч на земљи или ударио у терен изнад.
+\
+Постоје мале разлике које увек доводе до малог одступања између позиција на клијентској и серверској страни, без обзира како се кретање рачуна:
+  - _Godot Game Engine_ као мерну јединицу користи пиксел, док _Rapier_ библиотека користи метар. Одлучено је да сваки метар на серверу буде представљен као 32 пиксела на клијенту дефинисањем _METER_TO_PIXEL_ константе. Стога се на клијенту, пре рачуна колизија, хоризонтална и вертикална брзина множе са дефинисаном константом, што доводи до минималног одступања приликом заокруживања вредности.
+  - Чак уз примену _tick-rate_ синхронизације, где је одређено да се физика рачуна 60 пута у секунди, због начина на који _Godot Game Engine_ и _Rapier_ заокружују децималне вредности, кроз велики број итерација може доћи до благог одступања у срачунатим позицијама (до неколико пиксела кроз одређени период).
+
+#figure(
+  ```rust
+pub fn handle_movement(
+        &mut self,
+        custom_gravity: Vec2,
+        delta: f32,
+        rigid_body_set: &mut RigidBodySet,
+        collider_set: &mut ColliderSet,
+        broad_phase: &BroadPhaseBvh,
+        narrow_phase: &NarrowPhase,
+        char_controller: KinematicCharacterController,
+    ) {
+        let mut translation_to_apply = None;
+        {
+            if self.is_on_ground && self.vertical_velocity >= 0.0 {
+                self.vertical_velocity = 0.0;
+            }
+            self.vertical_velocity += custom_gravity.y * delta;
+            if self.vertical_velocity > 12.0 {
+                self.vertical_velocity = 12.0;
+            }
+            if let Some(rb) = rigid_body_set.get(self.body_handle) {
+                //...КОД ЗА ФИЛТРИРАЊЕ КОЛИЗИЈЕ НИЈЕ ПРИКАЗАН
+                let pos_after_x = rb.position().translation + result_x.translation;
+                let mut temp_pose = Pose::new(Vec2::new(pos_after_x.x, pos_after_x.y), 0.0);
+                let vertical = vec2(0.0, self.vertical_velocity * delta);
+                self.is_on_ground = false;
+                let mut hit_ceiling = false;
+                //Провера да ли је играч на земљи, у ваздуху или је ударио терен изнад
+                let result_y = char_controller.move_shape(
+                    delta,
+                    &queries,
+                    collider.shape(),
+                    &temp_pose,
+                    vertical,
+                    |collision| {
+                        let normal = collision.hit.normal1;
+                        if normal.y < -0.5 {
+                            if self.vertical_velocity >= 0.0 {
+                                self.is_on_ground = true;
+                                self.vertical_velocity = 0.0;
+                            }
+                        }
+                        if normal.y > 0.5 {
+                            if self.vertical_velocity < 0.0 {
+                                hit_ceiling = true;
+                            }
+                        }
+                    },
+                );
+                let mut final_translation = result_x.translation + result_y.translation;
+                translation_to_apply = Some(final_translation);
+            }
+        }
+  ```
+, 
+caption: [Део имплементације _handle_movement()_ методе задужене за рачунање позиције играча.]) <lst:handle_movement_metoda_server>
