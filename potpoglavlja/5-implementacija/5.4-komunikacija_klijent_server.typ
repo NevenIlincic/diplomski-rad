@@ -143,7 +143,7 @@ _WebSocket_ комуникација: Поред UDP-а, синглтон инт
 
 Са друге стране, *_MyHttpHandler_* синглтон (приказан на листингу @lst:deo_MyHttpHandler_singltona) се ослања на  REST API комуникацију. Архитектура овог синглтона се заснива на асинхроном моделу захтев-одговор (_Request-Response_), где свака акциона метода има свој пратећи повратни позив (_callback_ методу) која се окида по завршетку HTTP захтева (_register()_ - _on_register_completed_(), _login()_ - _on_login_completed()_). Такође, иако је *_Network_* задужен за успостављање конекције, *_MyHttpHandler_* синглтон је задужен и за слање података ка серверу путем _WebSocket_-а.
 
-Аутентификација и регистрација: Методе _register()_ и _login()_ омогућавају слање креденцијала корисника ка серверу, док одговарајуће функције _on_register_completed и _on_login_completed прихватају повратне параметре (_result_, _response_code_, _headers_, _body_, _http_node_) и обрађују статус код сервера (нпр. издавање и чување JWT токена).
+Аутентификација и регистрација: Методе _register()_ и _login()_ омогућавају слање креденцијала корисника ка серверу, док одговарајуће функције _on_register_completed()_ и _on_login_completed()_ прихватају повратне параметре (_result_, _response_code_, _headers_, _body_, _http_node_) и обрађују статус код сервера (нпр. издавање и чување JWT токена).
 
 Управљање _lobby_-јима: Методе попут _get_all_lobies()_ и _create_lobby_binary()_ омогућавају преглед доступних соба и креирање нових партија са специфичним параметрима (максималан број играча, шифра _lobby_-ја, број режима игре).
 #figure(
@@ -204,5 +204,125 @@ _WebSocket_ комуникација: Поред UDP-а, синглтон инт
 \
 \
 \
-
+\
+\
+\
 === Оптимизација величине пакета
+У циљу смањења мрежног оптерећења (_network overhead_) и кашњења, комуникација између клијента и сервера у овој апликацији је реализована коришћењем бинарне серијализације података уместо текстуалних формата као што је JSON. Иако је JSON читљив и једноставан за имплементацију, он је за потребе мрежмне синхронизације у реалном времену неефикасан из следећих разлога:
+- У JSON-у, сваки податак је идентификован кључем. На пример, запис {"position_x": 140.0} троши бајтове и на назив кључа који се понавља у сваком пакету. Бинарни запис преноси само вредности, што драстично смањује величину пакета.
+- Додатно, одређено време се троши на десеријализацију самог формата, што код бинарне серијализације није случај.
+
+Листинг @lst:convert_input_data_to_byte_array_metoda приказује методу _convert_input_data_to_byte_array()_ *_Network_* синглтона, која је задужена за припрему података за слање ка серверу. *_INPUT_DATA_* представља речник у којем се налазе неопходни подаци које клијент шаље ка серверу како би сервер могао успешно да изврши симулацију.
+
+Поређења ради, употребом JSON формата, сваког фрејма клијент шаље пакете величине око 180 бајтова, док се употребом бинарне серијализације величина пакета смањује на 37 бајтова:
+- _message_type_ (u32): 4 бајта,
+- _my_id_ (u32): 4 бајта,
+- _input_id_ (u32): 4 бајта,
+- boolean поља (u8 по пољу): 4 бајта,
+- _mouse_angle_ (float / 32-bit): 4 бајта,
+- _cmd_id_ (u32): 4 бајта,
+- _gun_id_ (u32): 4 бајта,
+- провера за позицију метка (u8 за 0 или 1): 1 бајт,
+- _bullet_spawn_position_ (2 пута по 4 бајта за float): 8 бајтова
+
+Како би се додатно уштедело на величини пакета, у неким ситуацијама је искоришћено и битовско померање. Уместо да се подаци о томе да ли је играч на земљи, да ли репетира оружје или гледа надесно прослеђују као три засебна бајта, шаље се 1 бајт. Коришћењем битовског "и" са одређеном маском и поређењем добијене вредности са нула, добијају се _boolean_ вредности. Листинг @lst:create_player_snapshot_metoda_klijent приказује читање бинарног формата пакета добијеног од сервера.
+
+Важно је напоменути да је редослед којим се подаци читају и пакују битан. Нарушавање редоследа само једног поља може довести до десинхронизације и погрешног тумачења података.
+#figure(
+  ```gdscript
+    INPUT_DATA = {
+		"player_id": my_id,
+		"input_id": 0,
+		"move_left": false,
+		"move_right": false,
+		"jump": false,
+		"shoot": false,
+		"mouse_angle": 0.0,
+		"command": "JOIN",
+		"gun": "pistol",
+		"bullet_spawn_position": null
+	}
+
+
+     func convert_input_data_to_byte_array():
+	var buffer = StreamPeerBuffer.new()
+	
+	buffer.put_u32(0) # ClientMessage::Input
+	buffer.put_u32(my_id)
+	buffer.put_u32(INPUT_DATA["input_id"])
+	
+	buffer.put_u8(1 if INPUT_DATA["move_left"] else 0)
+	buffer.put_u8(1 if INPUT_DATA["move_right"] else 0)
+	buffer.put_u8(1 if INPUT_DATA["jump"] else 0)
+	buffer.put_u8(1 if INPUT_DATA["shoot"] else 0)
+	
+	buffer.put_float(INPUT_DATA["mouse_angle"])
+	
+	var cmd_id = Command.get(INPUT_DATA["command"], 0)
+	buffer.put_u32(cmd_id) 
+
+	var gun_id = Gun.get(INPUT_DATA["gun"].to_upper(), 0)
+	buffer.put_u32(gun_id)
+
+	if INPUT_DATA["bullet_spawn_position"] == null:
+		buffer.put_u8(0)
+	else:
+		buffer.put_u8(1)
+		buffer.put_float(INPUT_DATA["bullet_spawn_position"][0])
+		buffer.put_float(INPUT_DATA["bullet_spawn_position"][1])
+			
+	return buffer.data_array
+  ```,
+  caption: [Припрема података за слање корисничких акција ка серверу.],
+) <lst:convert_input_data_to_byte_array_metoda>
+
+#figure(
+  ```gdscript
+    func create_players_snapshot(buffer: StreamPeerBuffer):
+        var snapshot: Dictionary = {}
+        
+        snapshot["id"] = buffer.get_u32()
+        
+        var name_length = buffer.get_u64() 
+        snapshot["nickname"] = buffer.get_utf8_string(name_length)
+        
+        var pos_x = buffer.get_float()
+        var pos_y = buffer.get_float()
+        snapshot["position"] = Vector2(pos_x, pos_y)
+        
+        snapshot["hp"] = buffer.get_32()
+        
+        #const FLAG_FACING_RIGHT = 1 (00000001)
+        #const FLAG_IS_ON_GROUND = 2 (00000010)
+        #const FLAG_IS_RELOADING = 4 (00000100)
+        var flags_byte: int = buffer.get_u8()
+        var facing_right = (flags_byte & FLAG_FACING_RIGHT) != 0
+        var is_on_ground = (flags_byte & FLAG_IS_ON_GROUND) != 0
+        var is_reloading = (flags_byte & FLAG_IS_RELOADING) != 0
+        
+        snapshot["facing_right"] = facing_right
+        snapshot["is_on_ground"] = is_on_ground
+        snapshot["is_reloading"] = is_reloading
+        
+        snapshot["respawn_timer"] = buffer.get_float()
+        snapshot["last_processed_input_id"] = buffer.get_u32()
+        snapshot["mouse_angle"] = buffer.get_float()
+        
+        var gun_id = buffer.get_u32() 
+        if gun_id == 0:
+            snapshot["gun"] = "pistol"
+        elif gun_id == 1:
+            snapshot["gun"] = "m4a1_rifle"
+        elif gun_id == 2:
+            snapshot["gun"] = "grenade"
+        
+        snapshot["current_ammo"] = buffer.get_16()
+        snapshot["player_skin"] = buffer.get_u8()
+        snapshot["player_score"] = buffer.get_u8()
+        snapshot["velocity_x"] = buffer.get_u32()
+        snapshot["velocity_y"] = buffer.get_u32()
+        
+        return snapshot
+  ```,
+  caption: [Читање бинарног формата пакета добијеног од сервера.],
+) <lst:create_player_snapshot_metoda_klijent>
