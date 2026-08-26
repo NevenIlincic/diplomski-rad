@@ -116,7 +116,7 @@ _Commander's Defense_ је 2D _online multiplayer_ пуцачина са боч�
 
 #figure(image("../slike/scoreboard_tower_mode.png", width: 80%),
   caption: [
-    Изглед _scoreboard_-а са два играча у партији - FFA режим.
+    Изглед _scoreboard_-а са два играча у партији - кула режим.
   ]
 )<fig:scoreboard_tower>
 #figure(image("../slike/scoreboard.png", width: 80%),
@@ -130,7 +130,7 @@ _Commander's Defense_ је 2D _online multiplayer_ пуцачина са боч�
 
 #figure(image("../slike/killed_screen.png", width: 80%),
   caption: [
-    Изглед _scoreboard_-а са два играча у партији.
+    Изглед екрана након елиминације (_death_ екран).
   ]
 )<fig:killed_screen>
 
@@ -139,7 +139,7 @@ _Commander's Defense_ је 2D _online multiplayer_ пуцачина са боч�
 
 #figure(image("../slike/winner_screen.png", width: 80%),
   caption: [
-    Изглед _scoreboard_-а са два играча у партији.
+    Приказ победника након завршене партије.
   ]
 )<fig:winner_screen>
 
